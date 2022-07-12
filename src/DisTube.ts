@@ -17,10 +17,11 @@ import {
   isClientInstance,
   isMemberInstance,
   isMessageInstance,
+  isCommandInteractionInstance,
   isSupportedVoiceChannel,
   isTextChannelInstance,
 } from ".";
-import type { Client, GuildMember, GuildTextBasedChannel, VoiceBasedChannel } from "discord.js";
+import type { Client, GuildMember, GuildTextBasedChannel, VoiceBasedChannel, ChatInputCommandInteraction } from "discord.js";
 import type {
   CustomPlugin,
   DisTubeEvents,
@@ -152,6 +153,7 @@ export class DisTube extends TypedEmitter<DisTubeEvents> {
   async play(
     voiceChannel: VoiceBasedChannel,
     song: string | Song | SearchResult | Playlist,
+    interaction: ChatInputCommandInteraction
     options: PlayOptions = {},
   ): Promise<void> {
     if (!isSupportedVoiceChannel(voiceChannel)) {
@@ -170,6 +172,9 @@ export class DisTube extends TypedEmitter<DisTubeEvents> {
     if (message && !isMessageInstance(message)) {
       throw new DisTubeError("INVALID_TYPE", ["Discord.Message", "a falsy value"], message, "options.message");
     }
+    if (interaction && !isCommandInteractionInstance(interaction)) {
+       throw new DisTubeError("INVALID_TYPE", ["Discord.ChatInputCommandInteraction", "a falsy value"], interaction, "options.interaction");
+    }
     if (textChannel && !isTextChannelInstance(textChannel)) {
       throw new DisTubeError("INVALID_TYPE", "Discord.GuildTextBasedChannel", textChannel, "options.textChannel");
     }
@@ -183,7 +188,7 @@ export class DisTube extends TypedEmitter<DisTubeEvents> {
       if (typeof song === "string") {
         for (const plugin of this.customPlugins) {
           if (await plugin.validate(song)) {
-            await plugin.play(voiceChannel, song, options);
+            await plugin.play(voiceChannel, song, interaction, options);
             return;
           }
         }
@@ -199,9 +204,9 @@ export class DisTube extends TypedEmitter<DisTubeEvents> {
       }
       song = await this.handler.resolve(song, { member, metadata });
       if (song instanceof Playlist) {
-        await this.handler.playPlaylist(voiceChannel, song, { textChannel, skip, position });
+        await this.handler.playPlaylist(voiceChannel, song, interaction, { textChannel, skip, position });
       } else {
-        await this.handler.playSong(voiceChannel, song, { textChannel, skip, position });
+        await this.handler.playSong(voiceChannel, song, interaction, { textChannel, skip, position });
       }
     } catch (e: any) {
       if (!(e instanceof DisTubeError)) {
@@ -574,12 +579,12 @@ export class DisTube extends TypedEmitter<DisTubeEvents> {
   /**
    * Emit error event
    * @param {Error} error error
-   * @param {Discord.BaseGuildTextChannel} [channel] Text channel where the error is encountered.
+   * @param {Discord.ChatInputCommandInteraction} [interaction] The interaction the error event is encountered.
    * @private
    */
-  emitError(error: Error, channel?: GuildTextBasedChannel): void {
+  emitError(error: Error, interaction?: ChatInputCommandInteraction): void {
     if (this.listeners("error").length) {
-      this.emit("error", channel, error);
+      this.emit("error", interaction, error);
     } else {
       /* eslint-disable no-console */
       console.error(error);
