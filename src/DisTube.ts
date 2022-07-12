@@ -153,7 +153,7 @@ export class DisTube extends TypedEmitter<DisTubeEvents> {
   async play(
     voiceChannel: VoiceBasedChannel,
     song: string | Song | SearchResult | Playlist,
-    interaction: ChatInputCommandInteraction
+    interaction: ChatInputCommandInteraction,
     options: PlayOptions = {},
   ): Promise<void> {
     if (!isSupportedVoiceChannel(voiceChannel)) {
